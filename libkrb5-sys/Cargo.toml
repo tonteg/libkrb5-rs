@@ -17,7 +17,7 @@ links = "krb5"
 [dependencies]
 
 [build-dependencies]
-bindgen = "0.59.1"
+bindgen = "0.69.4"
 pkg-config = "0.3.17"
 
 [badges]
