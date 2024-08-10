@@ -69,7 +69,16 @@ impl Krb5Context {
         let code: krb5_error_code = match args.len() {
             // varargs support in Rust is lacking, so only support a limited number of arguments for now
             0 => unsafe { krb5_build_principal(self.context, principal_ptr.as_mut_ptr(), realml, crealm.as_ptr()) },
-            1 => unsafe { krb5_build_principal(self.context, principal_ptr.as_mut_ptr(), realml, crealm.as_ptr(), varargs[0].as_ptr()) },
+            1 => unsafe {
+                krb5_build_principal(
+                    self.context,
+                    principal_ptr.as_mut_ptr(),
+                    realml,
+                    crealm.as_ptr(),
+                    varargs[0].as_ptr(),
+                    std::ptr::null::<*const c_char>(),
+                )
+            },
             2 => unsafe {
                 krb5_build_principal(
                     self.context,
@@ -78,6 +87,7 @@ impl Krb5Context {
                     crealm.as_ptr(),
                     varargs[0].as_ptr(),
                     varargs[1].as_ptr(),
+                    std::ptr::null::<*const c_char>(),
                 )
             },
             3 => unsafe {
@@ -89,6 +99,7 @@ impl Krb5Context {
                     varargs[0].as_ptr(),
                     varargs[1].as_ptr(),
                     varargs[2].as_ptr(),
+                    std::ptr::null::<*const c_char>(),
                 )
             },
             4 => unsafe {
@@ -101,6 +112,7 @@ impl Krb5Context {
                     varargs[1].as_ptr(),
                     varargs[2].as_ptr(),
                     varargs[3].as_ptr(),
+                    std::ptr::null::<*const c_char>(),
                 )
             },
             _ => return Err(Krb5Error::MaxVarArgsExceeded),
