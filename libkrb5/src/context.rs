@@ -65,20 +65,19 @@ impl Krb5Context {
         }
 
         let mut principal_ptr: MaybeUninit<krb5_principal> = MaybeUninit::zeroed();
-
         // TODO: write a macro to generate this match block
         let code: krb5_error_code = match args.len() {
             // varargs support in Rust is lacking, so only support a limited number of arguments for now
-            0 => unsafe { krb5_build_principal(self.context, principal_ptr.as_mut_ptr(), realml, crealm) },
-            1 => unsafe { krb5_build_principal(self.context, principal_ptr.as_mut_ptr(), realml, crealm, varargs[0]) },
+            0 => unsafe { krb5_build_principal(self.context, principal_ptr.as_mut_ptr(), realml, crealm.as_ptr()) },
+            1 => unsafe { krb5_build_principal(self.context, principal_ptr.as_mut_ptr(), realml, crealm.as_ptr(), varargs[0].as_ptr()) },
             2 => unsafe {
                 krb5_build_principal(
                     self.context,
                     principal_ptr.as_mut_ptr(),
                     realml,
-                    crealm,
-                    varargs[0],
-                    varargs[1],
+                    crealm.as_ptr(),
+                    varargs[0].as_ptr(),
+                    varargs[1].as_ptr(),
                 )
             },
             3 => unsafe {
@@ -86,10 +85,10 @@ impl Krb5Context {
                     self.context,
                     principal_ptr.as_mut_ptr(),
                     realml,
-                    crealm,
-                    varargs[0],
-                    varargs[1],
-                    varargs[2],
+                    crealm.as_ptr(),
+                    varargs[0].as_ptr(),
+                    varargs[1].as_ptr(),
+                    varargs[2].as_ptr(),
                 )
             },
             4 => unsafe {
@@ -97,11 +96,11 @@ impl Krb5Context {
                     self.context,
                     principal_ptr.as_mut_ptr(),
                     realml,
-                    crealm,
-                    varargs[0],
-                    varargs[1],
-                    varargs[2],
-                    varargs[3],
+                    crealm.as_ptr(),
+                    varargs[0].as_ptr(),
+                    varargs[1].as_ptr(),
+                    varargs[2].as_ptr(),
+                    varargs[3].as_ptr(),
                 )
             },
             _ => return Err(Krb5Error::MaxVarArgsExceeded),
@@ -137,14 +136,19 @@ impl Krb5Context {
     }
 
     pub fn get_host_realms(&self, host: Option<&str>) -> Result<Vec<String>, Krb5Error> {
-        let c_host = match host {
-            Some(host) => string_to_c_string(host)?,
-            None => std::ptr::null(),
+
+
+        let c_host = string_to_c_string(host.unwrap_or(""))?;
+
+        let c_host_ptr = if c_host.is_empty() {
+            std::ptr::null()
+        } else {
+            c_host.as_ptr()
         };
 
         let mut c_realms: MaybeUninit<*mut *mut c_char> = MaybeUninit::zeroed();
 
-        let code: krb5_error_code = unsafe { krb5_get_host_realm(self.context, c_host, c_realms.as_mut_ptr()) };
+        let code: krb5_error_code = unsafe { krb5_get_host_realm(self.context, c_host_ptr, c_realms.as_mut_ptr()) };
         krb5_error_code_escape_hatch(self, code)?;
 
         let c_realms = unsafe { c_realms.assume_init() };

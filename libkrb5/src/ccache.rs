@@ -115,8 +115,14 @@ impl<'a> Krb5CCache<'a> {
 
         let mut ccache_ptr: MaybeUninit<krb5_ccache> = MaybeUninit::zeroed();
 
-        let code: krb5_error_code =
-            unsafe { krb5_cc_new_unique(context.context, cctype, std::ptr::null(), ccache_ptr.as_mut_ptr()) };
+        let code: krb5_error_code = unsafe {
+            krb5_cc_new_unique(
+                context.context,
+                cctype.as_ptr(),
+                std::ptr::null(),
+                ccache_ptr.as_mut_ptr(),
+            )
+        };
 
         krb5_error_code_escape_hatch(context, code)?;
 
@@ -133,7 +139,7 @@ impl<'a> Krb5CCache<'a> {
 
         let mut ccache_ptr: MaybeUninit<krb5_ccache> = MaybeUninit::zeroed();
 
-        let code: krb5_error_code = unsafe { krb5_cc_resolve(context.context, name, ccache_ptr.as_mut_ptr()) };
+        let code: krb5_error_code = unsafe { krb5_cc_resolve(context.context, name.as_ptr(), ccache_ptr.as_mut_ptr()) };
 
         krb5_error_code_escape_hatch(context, code)?;
 

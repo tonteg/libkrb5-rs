@@ -14,11 +14,11 @@ pub(crate) fn c_string_to_string(c_string: *const c_char) -> Result<String, Krb5
     }
 }
 
-pub(crate) fn string_to_c_string(string: &str) -> Result<*const c_char, Krb5Error> {
+pub(crate) fn string_to_c_string(string: &str) -> Result<CString, Krb5Error> {
     let cstring = match CString::new(string) {
         Ok(value) => value,
         Err(_) => return Err(Krb5Error::StringConversion { error: None }),
     };
 
-    Ok(cstring.as_ptr())
+    Ok(cstring)
 }
