@@ -21,6 +21,15 @@ lazy_static! {
     static ref CONTEXT_INIT_LOCK: Mutex<()> = Mutex::new(());
 }
 
+const TOK_MIC_MSG: u16 = 0x0404;
+
+#[derive(Clone, Copy)]
+#[repr(i32)]
+pub enum Krb5KeyUsage {
+    AcceptorSign = KRB5_KEYUSAGE_GSS_TOK_WRAP_INTEG as i32,
+    InitiatorSign = KRB5_KEYUSAGE_PA_SAM_CHALLENGE_CKSUM as i32,
+}
+
 #[derive(Debug)]
 pub struct Krb5Context {
     pub(crate) context: krb5_context,
@@ -248,6 +257,60 @@ impl Krb5Context {
         let ap_rep = unsafe { slice::from_raw_parts(ap_rep_ptr.data as *mut u8, ap_rep_ptr.length as usize) };
 
         Ok(ap_rep)
+    }
+
+    pub fn create_signature(
+        &self,
+        auth_context: &Krb5AuthContext,
+        message_to_sign: &[u8],
+        key: &Krb5Keyblock,
+        usage: Krb5KeyUsage,
+        local_seq_num: i32,
+    ) -> Result<Vec<u8>, Krb5Error> {
+        let message_to_sign = message_to_sign.to_owned();
+
+        let tok_id = TOK_MIC_MSG.to_be_bytes();
+        let flags = 0x5_u8.to_be_bytes(); //ACCEPTOR_SIGN | USE_SUBKEY
+        let filler = b"\xFF\xFF\xFF\xFF\xFF";
+        let seq_num = (local_seq_num as i64).to_be_bytes();
+
+        let mut header: Vec<u8> = Vec::new();
+        header.extend_from_slice(&tok_id);
+        header.extend_from_slice(&flags);
+        header.extend_from_slice(filler);
+        header.extend_from_slice(&seq_num);
+
+        let mut input_buf = Vec::with_capacity(message_to_sign.len() + header.len());
+        input_buf.extend(message_to_sign);
+        input_buf.extend(header.to_vec());
+
+        let input_data = krb5_data {
+            magic: 0,
+            data: input_buf.as_mut_ptr() as *mut i8,
+            length: input_buf.len() as u32,
+        };
+
+        let mut key = key.to_owned();
+        let mut checksum_ptr: MaybeUninit<krb5_checksum> = MaybeUninit::zeroed();
+        let code = unsafe {
+            krb5_c_make_checksum(
+                self.context,
+                0,
+                key.to_c(),
+                usage as i32,
+                &input_data,
+                checksum_ptr.as_mut_ptr(),
+            )
+        };
+        krb5_error_code_escape_hatch(self, code)?;
+
+        let checksum_ptr = unsafe { checksum_ptr.assume_init() };
+
+        let checksum = unsafe { slice::from_raw_parts(checksum_ptr.contents, checksum_ptr.length as usize) };
+
+        header.extend_from_slice(checksum);
+
+        Ok(header)
     }
 
     // TODO: this produces invalid UTF-8?
