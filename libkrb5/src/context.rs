@@ -11,7 +11,7 @@ use std::sync::Mutex;
 use lazy_static::lazy_static;
 use libkrb5_sys::*;
 
-use crate::credential::Krb5Keyblock;
+use crate::credential::{Krb5Creds, Krb5Keyblock};
 use crate::error::{krb5_error_code_escape_hatch, Krb5Error};
 use crate::principal::Krb5Principal;
 use crate::strconv::{c_string_to_string, string_to_c_string};
@@ -218,6 +218,34 @@ impl Krb5Context {
         unsafe { krb5_free_host_realm(self.context, c_realms) };
 
         Ok(realms)
+    }
+
+    pub fn create_ap_req<'a>(
+        &self,
+        auth_context: &'a mut Krb5AuthContext,
+        user_creds: &'a mut Krb5Creds,
+    ) -> Result<&[u8], Krb5Error> {
+        let mut ap_req_ptr: MaybeUninit<krb5_data> = MaybeUninit::zeroed();
+        let mut auth_ctx = auth_context.auth_context;
+        let mut ap_req_options: krb5_flags = 0;
+
+        let in_data = std::ptr::null_mut();
+        let code = unsafe {
+            krb5_mk_req_extended(
+                self.context,
+                &mut auth_ctx,
+                ap_req_options,
+                in_data,
+                &mut user_creds.creds,
+                ap_req_ptr.as_mut_ptr(),
+            )
+        };
+        krb5_error_code_escape_hatch(self, code)?;
+
+        let ap_req_ptr = unsafe { ap_req_ptr.assume_init() };
+        let ap_req = unsafe { slice::from_raw_parts(ap_req_ptr.data as *mut u8, ap_req_ptr.length as usize) };
+
+        Ok(ap_req)
     }
 
     pub fn verify_ap_req<'a>(
