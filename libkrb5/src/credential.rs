@@ -115,6 +115,13 @@ impl<'a> Krb5Creds<'a> {
     pub fn keyblock(&self) -> Krb5Keyblock {
         Krb5Keyblock::from_c(&self.creds.keyblock)
     }
+
+    pub fn get_client_principal(&self) -> Krb5Principal {
+        Krb5Principal {
+            context: &self.context,
+            principal: self.creds.client,
+        }
+    }
 }
 
 impl<'a> Drop for Krb5Creds<'a> {

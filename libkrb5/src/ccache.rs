@@ -7,6 +7,7 @@ use crate::context::Krb5Context;
 use crate::error::{krb5_error_code_escape_hatch, Krb5Error};
 use crate::principal::Krb5Principal;
 use crate::strconv::{c_string_to_string, string_to_c_string};
+use crate::credential::Krb5Creds;
 
 #[derive(Debug)]
 pub struct Krb5CCache<'a> {
@@ -107,6 +108,19 @@ impl<'a> Krb5CCache<'a> {
 
         krb5_error_code_escape_hatch(self.context, code)?;
 
+        Ok(())
+    }
+
+    pub fn store(&self, creds: &mut Krb5Creds) -> Result<(), Krb5Error> {
+        let code: krb5_error_code = unsafe {
+            krb5_cc_store_cred(
+                self.context.context,
+                self.ccache,
+                &mut creds.creds
+            )
+        };
+
+        krb5_error_code_escape_hatch(self.context, code)?;
         Ok(())
     }
 
